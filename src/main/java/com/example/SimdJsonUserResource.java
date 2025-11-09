@@ -6,6 +6,7 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import java.io.InputStream;
+import org.simdjson.JsonValue;
 import org.simdjson.SimdJsonParser;
 
 @Path("/user")
@@ -19,7 +20,27 @@ public class SimdJsonUserResource {
     @Path("/simdjson")
     public User parseUserSimdJson(InputStream inputStream) throws Exception {
         byte[] jsonBytes = inputStream.readAllBytes();
-        User user = parser.parse(jsonBytes, jsonBytes.length, User.class);
+        JsonValue jsonValue = parser.parse(jsonBytes, jsonBytes.length);
+        
+        // Manual mapping from JsonValue to User
+        User user = new User();
+        if (jsonValue.isObject()) {
+            JsonValue nameValue = jsonValue.get("name");
+            if (nameValue != null && nameValue.isString()) {
+                user.name = nameValue.asString();
+            }
+            
+            JsonValue ageValue = jsonValue.get("age");
+            if (ageValue != null && ageValue.isLong()) {
+                user.age = (int) ageValue.asLong();
+            }
+            
+            JsonValue emailValue = jsonValue.get("email");
+            if (emailValue != null && emailValue.isString()) {
+                user.email = emailValue.asString();
+            }
+        }
+        
         return user;
     }
 }
