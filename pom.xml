@@ -37,9 +37,9 @@
             <version>6.4.0</version>
         </dependency>
         <dependency>
-            <groupId>org.eclipse</groupId>
+            <groupId>org.simdjson</groupId>
             <artifactId>simdjson-java</artifactId>
-            <version>0.10.0</version>
+            <version>0.3.0</version>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
