@@ -2,9 +2,14 @@
 
 A Quarkus project for comparing JSON parsing performance between different libraries:
 
-1. **Jackson** (via `quarkus-resteasy-reactive-jackson`) - Standard JSON parser
+1. **Jackson** (via `quarkus-rest-jackson`) - Standard JSON parser
 2. **SimdJSON** - High-performance SIMD-based JSON parser
 3. **Alibaba FastJSON2** - Fast JSON parser from Alibaba
+
+## Requirements
+
+- Java 25 or later
+- Maven 3.9+
 
 ## Endpoints
 
