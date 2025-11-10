@@ -1,0 +1,142 @@
+name: Performance Comparison
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  load-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        cache: maven
+        
+    - name: Build with Maven
+      run: mvn clean package -DskipTests
+      
+    # Test 1: Plain Quarkus (Jackson) with fresh JVM
+    - name: Start Quarkus server for Jackson test
+      run: |
+        java --add-modules jdk.incubator.vector -jar target/quarkus-app/quarkus-run.jar > server-jackson.log 2>&1 &
+        SERVER_PID=$!
+        echo "JACKSON_SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+        echo "Started server for Jackson test with PID: $SERVER_PID"
+        
+    - name: Wait for server to be ready (Jackson test)
+      run: |
+        echo "Waiting for server to start..."
+        for i in {1..30}; do
+          if curl -s http://localhost:8080 > /dev/null 2>&1; then
+            echo "Server is ready!"
+            break
+          fi
+          echo "Waiting... ($i/30)"
+          sleep 2
+        done
+        
+        # Verify server is responding
+        if ! curl -s http://localhost:8080 > /dev/null 2>&1; then
+          echo "Server failed to start!"
+          cat server-jackson.log
+          exit 1
+        fi
+        
+    - name: Run load test - Plain Quarkus (Jackson)
+      run: |
+        chmod +x .github/loadtest.sh
+        .github/loadtest.sh "/user/standard" "Plain Quarkus (Jackson)" 1000
+        
+    - name: Stop server after Jackson test
+      run: |
+        if [ -n "$JACKSON_SERVER_PID" ]; then
+          echo "Stopping Jackson test server (PID: $JACKSON_SERVER_PID)"
+          kill $JACKSON_SERVER_PID || true
+          sleep 3
+          # Force kill if still running
+          kill -9 $JACKSON_SERVER_PID 2>/dev/null || true
+        fi
+        
+    # Test 2: SimdJSON with fresh JVM
+    - name: Start Quarkus server for SimdJSON test
+      run: |
+        java --add-modules jdk.incubator.vector -jar target/quarkus-app/quarkus-run.jar > server-simdjson.log 2>&1 &
+        SERVER_PID=$!
+        echo "SIMDJSON_SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+        echo "Started server for SimdJSON test with PID: $SERVER_PID"
+        
+    - name: Wait for server to be ready (SimdJSON test)
+      run: |
+        echo "Waiting for server to start..."
+        for i in {1..30}; do
+          if curl -s http://localhost:8080 > /dev/null 2>&1; then
+            echo "Server is ready!"
+            break
+          fi
+          echo "Waiting... ($i/30)"
+          sleep 2
+        done
+        
+        # Verify server is responding
+        if ! curl -s http://localhost:8080 > /dev/null 2>&1; then
+          echo "Server failed to start!"
+          cat server-simdjson.log
+          exit 1
+        fi
+        
+    - name: Run load test - SimdJSON
+      run: |
+        .github/loadtest.sh "/user/simdjson" "SimdJSON" 1000
+        
+    - name: Stop server after SimdJSON test
+      run: |
+        if [ -n "$SIMDJSON_SERVER_PID" ]; then
+          echo "Stopping SimdJSON test server (PID: $SIMDJSON_SERVER_PID)"
+          kill $SIMDJSON_SERVER_PID || true
+          sleep 3
+          # Force kill if still running
+          kill -9 $SIMDJSON_SERVER_PID 2>/dev/null || true
+        fi
+        
+    - name: Generate comparison summary
+      if: always()
+      run: |
+        if [ -f loadtest_results.csv ]; then
+          echo "## Performance Comparison Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Implementation | Endpoint | Iterations | Total Time (ms) | Avg Response (ms) |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------------|----------|------------|-----------------|-------------------|" >> $GITHUB_STEP_SUMMARY
+          while IFS=',' read -r name endpoint iterations total_ms avg_ms; do
+            echo "| $name | \`$endpoint\` | $iterations | $total_ms | $avg_ms |" >> $GITHUB_STEP_SUMMARY
+          done < loadtest_results.csv
+          echo "" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+    - name: Upload load test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: loadtest-results
+        path: |
+          loadtest_results.csv
+          server-jackson.log
+          server-simdjson.log
+        
+    - name: Final cleanup
+      if: always()
+      run: |
+        # Ensure all server processes are stopped
+        pkill -f quarkus-run.jar || true
+        sleep 2
