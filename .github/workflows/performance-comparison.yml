@@ -38,7 +38,7 @@ jobs:
     # Test 1: Plain Quarkus (Jackson) with fresh JVM
     - name: Start Quarkus server for Jackson test
       run: |
-        java --add-modules jdk.incubator.vector -jar target/quarkus-app/quarkus-run.jar > server-jackson.log 2>&1 &
+        java --add-modules -Dorg.simdjson.species=512 jdk.incubator.vector -jar target/quarkus-app/quarkus-run.jar > server-jackson.log 2>&1 &
         SERVER_PID=$!
         echo "JACKSON_SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
         echo "Started server for Jackson test with PID: $SERVER_PID"
