@@ -29,4 +29,16 @@ public class LoadTest {
             .statusCode(200)
             .time(lessThan(5000L));
     }
+    
+    @Test
+    public void testFastJson2Endpoint() {
+        RestAssured.given()
+            .baseUri("http://localhost:8080")
+            .body(new User() /* ... */)
+            .contentType("application/json")
+            .post("/user/fastjson2")
+            .then()
+            .statusCode(200)
+            .time(lessThan(5000L));
+    }
 }
