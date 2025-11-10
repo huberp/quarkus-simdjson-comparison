@@ -6,12 +6,20 @@ on:
   pull_request:
     branches: [ main, master ]
   workflow_dispatch:
+    inputs:
+      iterations:
+        description: 'Number of load test iterations'
+        required: false
+        default: '5000'
+        type: string
 
 jobs:
   load-test:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      ITERATIONS: ${{ inputs.iterations || '5000' }}
     
     steps:
     - name: Checkout code
@@ -57,7 +65,7 @@ jobs:
     - name: Run load test - Plain Quarkus (Jackson)
       run: |
         chmod +x .github/loadtest.sh
-        .github/loadtest.sh "/user/standard" "Plain Quarkus (Jackson)" 1000
+        .github/loadtest.sh "/user/standard" "Plain Quarkus (Jackson)" $ITERATIONS
         
     - name: Stop server after Jackson test
       run: |
@@ -98,7 +106,7 @@ jobs:
         
     - name: Run load test - SimdJSON
       run: |
-        .github/loadtest.sh "/user/simdjson" "SimdJSON" 1000
+        .github/loadtest.sh "/user/simdjson" "SimdJSON" $ITERATIONS
         
     - name: Stop server after SimdJSON test
       run: |
